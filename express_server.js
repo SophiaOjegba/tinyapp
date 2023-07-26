@@ -3,6 +3,9 @@ const app = express();
 const PORT = 8080; // default port 8080
 app.set("view engine", "ejs");
 app.use(express.urlencoded({ extended: true }));
+const cookieParser = require('cookie-parser')
+app.use(cookieParser());
+
 
 function generateRandomString(){
   const chars = "ABCDEFGHIJKLMNOPQRSTUVWXTZabcdefghiklmnopqrstuvwxyz";
@@ -15,14 +18,12 @@ function generateRandomString(){
   }
   return randommString;
 }
-let result = generateRandomString()
-console.log(result)
 
+//Database
 const urlDatabase = {
   "b2xVn2": "http://www.lighthouselabs.ca",
   "9sm5xK": "http://www.google.com"
 };
-
 
 
 app.get("/", (req, res) => {
@@ -38,16 +39,17 @@ app.get("/hello", (req, res) => {
 });
 
 app.get("/urls", (req, res) => {
-  const templateVars = { urls: urlDatabase };
+  const templateVars = { urls: urlDatabase, username: req.cookies["username"] };
   res.render("urls_index", templateVars);
 });
 
 app.get("/urls/new", (req, res) => {
-  res.render("urls_new");
+  const templateVars = { id: req.params.id, longURL:urlDatabase[req.params.id], username: req.cookies["username"] };
+  res.render("urls_new", templateVars);
 });
 
 app.get("/urls/:id", (req, res) => {
-  const templateVars = { id: req.params.id, longURL:urlDatabase[req.params.id] };
+  const templateVars = { id: req.params.id, longURL:urlDatabase[req.params.id], username: req.cookies["username"] };
   res.render("urls_show", templateVars);
   
 });
@@ -59,6 +61,37 @@ app.get("/urls/:id", (req, res) => {
   const templateVars = { id: id, longURL: longURL };
   res.render("urls_show", templateVars);
 });
+
+app.get("/u/:id", (req, res) => {
+  const longURL = urlDatabase[req.params.id]
+  console.log(longURL)
+  if(!longURL ){
+   res.status(404).send()
+   return;
+  }
+ res.redirect(longURL);
+});
+
+app.get("/urls/:id", (req, res) => {
+  const id = req.params.id;
+  const longURL = urlDatabase[id];
+
+   if (!longURL) {
+     // URL with the specified 'id' not found
+     return res.status(404).send(`URL with ID ${id} not found.`);
+   }
+  // 
+  const templateVars = {
+    longURL, id
+  }
+  res.render(`urls_show`, templateVars);
+});
+
+
+
+
+
+
 
 // Route handler for adding new entries to the urlDatabase object
 app.post("/urls", (req, res) => {
@@ -93,20 +126,6 @@ app.post("/urls/:id/delete", (req, res) => {
   res.redirect(`/urls`);
 });
 
-app.get("/urls/:id", (req, res) => {
-  const id = req.params.id;
-  const longURL = urlDatabase[id];
-
-   if (!longURL) {
-     // URL with the specified 'id' not found
-     return res.status(404).send(`URL with ID ${id} not found.`);
-   }
-  // 
-  const templateVars = {
-    longURL, id
-  }
-  res.render(`urls_show`, templateVars);
-});
 app.post("/urls/:id/edit", (req, res) => {
   const id = req.params.id;
   const longURL = urlDatabase[id];
@@ -127,20 +146,14 @@ app.post("/urls/:id/edit", (req, res) => {
   res.redirect("/urls")
 });
 
-app.get("/u/:id", (req, res) => {
-   const longURL = urlDatabase[req.params.id]
-   console.log(longURL)
-   if(!longURL ){
-    res.status(404).send()
-    return;
-   }
-  res.redirect(longURL);
-});
-
 app.post("/urls/login", (req, res) => {
   res.cookie('username',  req.body.username)
 
-   
+  res.redirect("/urls")
+});
+
+app.post("/urls/logout", (req, res) => {
+  res.clearCookie('username')
 
   res.redirect("/urls")
 });
