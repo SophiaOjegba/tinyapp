@@ -23,9 +23,9 @@ function generateRandomString(){
 // Helper function email lookup
 
 function getUserByEmail(newEmail) {
-  for (let emailId in users )
-    if (newEmail === users[emailId].email){
-      return users[emailId];    
+  for (const userID in users )
+    if (newEmail === users[userID].email){
+      return users[userID];    
   
   }
   return null;
@@ -69,33 +69,30 @@ app.get("/hello", (req, res) => {
 // Route to display the list of all short URLs in the 'urlDatabase'
 app.get("/urls", (req, res) => {
   // Renders the "urls_index.ejs" template and passes 'urlDatabase' and 'username' to it
-  const templateVars = { urls: urlDatabase, users : [req.cookies.userID] };
+  const userObject = users[req.cookies.user_id]
+  const templateVars = { urls: urlDatabase, user : userObject };
   res.render("urls_index", templateVars);
 });
 
 // Route to display a form for creating a new short URL
 app.get("/urls/new", (req, res) => {
-  // Renders the "urls_new.ejs" template and passes 'id', 'longURL', and 'username'
-  const templateVars = { id: req.params.id, longURL:urlDatabase[req.params.id], users : [req.cookies.userID] };
+  const userObject = users[req.cookies.user_id]
+  const templateVars = { id: req.params.id, longURL:urlDatabase[req.params.id], user : userObject  };
   res.render("urls_new", templateVars);
 });
 
 // Route to display details of a specific short URL and its corresponding long URL
 app.get("/urls/:id", (req, res) => {
-   // Renders the "urls_show.ejs" template and passes 'id', 'longURL', and 'username'
-  const templateVars = { id: req.params.id, longURL:urlDatabase[req.params.id], users : [req.cookies.userID]};
-  res.render("urls_show", templateVars);
-  
-});
-
-
-app.get("/urls/:id", (req, res) => {
-   
   const id = req.params.id;
-  const longURL = urlDatabase[id];
+  const longURL = urlDatabase[req.params.id];
 
-  const templateVars = { id: id, longURL: longURL };
-  res.render("urls_show", templateVars);
+   if (!longURL) {
+     // URL with the specified 'id' not found
+     return res.status(404).send(`URL with ID ${id} not found.`);
+   }
+   const userObject = users[req.cookies.user_id]
+  const templateVars = { id: req.params.id, longURL:urlDatabase[req.params.id], user : userObject  };
+  res.render(`urls_show`, templateVars);
 });
 
 // Route to redirect the user to the long URL associated with a specific short URL
@@ -109,32 +106,26 @@ app.get("/u/:id", (req, res) => {
  res.redirect(longURL);
 });
 
-
-app.get("/urls/:id", (req, res) => {
-  const id = req.params.id;
-  const longURL = urlDatabase[id];
-
-   if (!longURL) {
-     // URL with the specified 'id' not found
-     return res.status(404).send(`URL with ID ${id} not found.`);
-   }
-  // 
-  const templateVars = {
-    longURL, id
-  }
-  res.render(`urls_show`, templateVars);
-});
-
 // Registration page
 app.get("/register", (req, res) => {
-  
+  const userObject = users[req.cookies.user_id]
+  const templateVars = { id: req.params.id, longURL:urlDatabase[req.params.id], user : userObject  };
 
-  res.render("urls_registration")
+  res.render("urls_registration", templateVars)
+});
+
+// Login page
+app.get("/login", (req, res) => {
+  const userObject = users[req.cookies.user_id]
+  const templateVars = { id: req.params.id, longURL:urlDatabase[req.params.id], user : userObject  };
+
+  res.render("urls_login", templateVars)
 });
 
 
 
 
+//POST ROUTES
 
 // Route to handle the creation of a new short URL and its long URL
 app.post("/urls", (req, res) => {
@@ -193,13 +184,27 @@ app.post("/urls/:id/edit", (req, res) => {
 
 // Route to handle user login (setting a username as a cookie)
 app.post("/login", (req, res) => {
-  res.cookie('user_id',  req.body.userID)
+  const userEmail = req.body.email;
+  const userPassword = req.body.password;
+  // check the user information
+  if (!userEmail || !userPassword ){
+    return res.status(404).send("Email or password cannot be empty");
+  }
 
-  res.redirect("/urls")
+  const userFound = getUserByEmail(userEmail)
+  if (!userFound || userFound.password !== userPassword){
+    return res.status(403).send("Incorrect email or password");
+  }
+
+   // set the user id as a cookie value then redirect the user to the urls page
+   res.cookie('user_id', userFound.id);
+   return res.redirect('/urls');
 });
+
 
 // Route to handle user logout (clearing the 'username' cookie)
 app.post("/logout", (req, res) => {
+
   res.clearCookie('user_id')
 
   res.redirect("/urls")
@@ -207,25 +212,32 @@ app.post("/logout", (req, res) => {
 
 // Registration page
 app.post("/register", (req, res) => {
-  const userID = generateRandomString();
   const newEmail = req.body.email;
   const newPassword = req.body.password;
-
+  
+  //Checking if fields are empty
   if (newEmail === "" || newPassword === ""){
     return res.status(404).send(`The email or password can not be empty`);
   }
-
+  
+  //check if usser already exists
   const user = getUserByEmail(newEmail)
   if(user){
     return res.status(404).send(`User already exists`);
   }
 
+  //generate random userID
+  const userID = generateRandomString();
+
+  //create user object
   users[userID] = {
-    id : userID,
-    email : newEmail,
-    password : newPassword };
-    res.cookie('user_id', userID)
-    console.log(users)
+    id: userID,
+    email: newEmail,
+    password: newPassword
+  };
+
+  //set cookie and redirect
+  res.cookie('user_id', userID)
   res.redirect("/urls")
 });
 

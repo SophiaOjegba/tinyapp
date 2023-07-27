@@ -14,20 +14,20 @@
       integrity="sha384-GJzZqFGwb1QTTN6wy59ffF1BuGJpLSa9DkKMp0DgiMDm4iYMj70gZWKYbI706tWS"
       crossorigin="anonymous"
     />
-    <title>Registration</title>
+    <title>Login</title>
   </head>
   <body>
     <%- include('partials/_header') %>
     <main style="margin: 1em;">
-      <h3>Create Account</h3>
-      <form method="POST" action="/register">
-        <label for="emailField">Email Adress</label><br>
+      <h3>Login</h3>
+      <form method="POST" action="/login">
+        <label for="emailField">Email Address</label><br/>
         <input id="emailField" type="email" name="email" placeholder="Enter Email"/><br/><br>
 
-        <label for="passwordField">Password:</label><br>
-        <input id="passwordField" type="password" name="password" placeholder="Password"/><br/>
-        <br>
-        <button type="submit"  class="btn btn-primary">Register</button>
+        <label for="passwordField">Password:</label><br/>
+        <input id="passwordField" type="password" name="password" placeholder="password"/><br/><br>
+
+        <button type="submit"  class="btn btn-primary">Login</button>
     </form>
       
     </main>
