@@ -6,6 +6,7 @@ app.set("view engine", "ejs");
 app.use(express.urlencoded({ extended: true }));
 const cookieParser = require('cookie-parser')
 app.use(cookieParser());
+const bcrypt = require("bcryptjs");
 
 // Function to generate a random alphanumeric string used for short URL IDs
 function generateRandomString(){
@@ -63,17 +64,17 @@ const users = {
   aJ48lW: {
     id: "userRandomID",
     email: "user@example.com",
-    password: "purple-monkey-dinosaur",
+    password: bcrypt.hashSync("purple-monkey-dinosaur", 10)
   },
   user2RandomID: {
     id: "user2RandomID",
     email: "user2@example.com",
-    password: "dishwasher-funk",
+    password: bcrypt.hashSync("dishwasher-funk", 10)
   },
   user3RandomID: {
     id: "user3RandomID",
     email: "a@a.con",
-    password: "mee",
+    password: bcrypt.hashSync("mee", 10)
   }
 };
 
@@ -259,7 +260,7 @@ app.post("/login", (req, res) => {
   }
 
   const userFound = getUserByEmail(userEmail)
-  if (!userFound || userFound.password !== userPassword){
+  if (!userFound || !bcrypt.compareSync(userPassword, userFound.password)){
     return res.status(403).send("Incorrect email or password");
   }
 
@@ -300,7 +301,7 @@ app.post("/register", (req, res) => {
   users[userID] = {
     id: userID,
     email: newEmail,
-    password: newPassword
+    password: bcrypt.hashSync(newPassword, 10),
   };
 
   //set cookie and redirect
