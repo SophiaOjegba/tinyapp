@@ -31,15 +31,36 @@ function getUserByEmail(newEmail) {
   return null;
 }
 
+//get userid corresponding to URL
+function urlsForUser(id){
+  let userUrl ={}
+  for (const shortUrl in urlDatabase )
+    if (id === urlDatabase[shortUrl].userID){
+      userUrl[shortUrl] = urlDatabase[shortUrl];    
+  
+  }
+  return userUrl;
+}
+
 // Database to store short URLs and their corresponding long URLs
 const urlDatabase = {
-  "b2xVn2": "http://www.lighthouselabs.ca",
-  "9sm5xK": "http://www.google.com"
+  b6UTxQ: {
+    longURL: "http://www.tsn.ca",
+    userID: "aJ48lW",
+  },
+  i3BoGr: {
+    longURL: "http://www.google.ca",
+    userID: "aJ48lW",
+  },
+  b2xVn2: {
+    longURL: "http://www.lighthouselabs.ca",
+    userID: "user3RandomID",
+  }
 };
 
 //Database for users
 const users = {
-  userRandomID: {
+  aJ48lW: {
     id: "userRandomID",
     email: "user@example.com",
     password: "purple-monkey-dinosaur",
@@ -49,6 +70,11 @@ const users = {
     email: "user2@example.com",
     password: "dishwasher-funk",
   },
+  user3RandomID: {
+    id: "user3RandomID",
+    email: "a@a.con",
+    password: "mee",
+  }
 };
 
 // Route to handle requests to the root path "/"
@@ -68,9 +94,10 @@ app.get("/hello", (req, res) => {
 
 // Route to display the list of all short URLs in the 'urlDatabase'
 app.get("/urls", (req, res) => {
-  // Renders the "urls_index.ejs" template and passes 'urlDatabase' and 'username' to it
+  const id = req.cookies.user_id;
+  // Renders the "urls_index.ejs" template and passes 'urlDatabase' and 'email' to it
   const userObject = users[req.cookies.user_id]
-  const templateVars = { urls: urlDatabase, user : userObject };
+  const templateVars = { urls: urlsForUser(id), user : userObject };
   res.render("urls_index", templateVars);
 });
 
@@ -78,48 +105,70 @@ app.get("/urls", (req, res) => {
 app.get("/urls/new", (req, res) => {
   const userObject = users[req.cookies.user_id]
   const templateVars = { id: req.params.id, longURL:urlDatabase[req.params.id], user : userObject  };
-  res.render("urls_new", templateVars);
+  if (userObject){
+    return res.render("urls_new",  templateVars)
+  }
+  else{
+  return res.redirect('/login');
+  };
 });
 
 // Route to display details of a specific short URL and its corresponding long URL
 app.get("/urls/:id", (req, res) => {
-  const id = req.params.id;
-  const longURL = urlDatabase[req.params.id];
-
-   if (!longURL) {
-     // URL with the specified 'id' not found
-     return res.status(404).send(`URL with ID ${id} not found.`);
-   }
-   const userObject = users[req.cookies.user_id]
-  const templateVars = { id: req.params.id, longURL:urlDatabase[req.params.id], user : userObject  };
-  res.render(`urls_show`, templateVars);
+  const userObject = users[req.cookies.user_id]
+  const templateVars = { id: req.params.id, longURL:urlDatabase[req.params.id].longURL, user : userObject  };
+  if (userObject){
+    if ( !urlDatabase[req.params.id]) {
+      // URL with the specified 'id' not found
+      return res.status(404).send("You do not have this url");
+    }
+    return res.render(`urls_show`, templateVars)
+  }
+  else{
+     res.status(404).send("<html><body>Please Login to visit this page</body></html>\n");
+  };
+  
+  if (!longURL) {
+    // URL with the specified 'id' not found
+    return res.status(404).send("<html><body>This Url does not exist</body></html>\n");
+  }
 });
 
 // Route to redirect the user to the long URL associated with a specific short URL
 app.get("/u/:id", (req, res) => {
-  const longURL = urlDatabase[req.params.id]
-  console.log(longURL)
+  console.log("This is id", req.params.id)
+ 
+  const longURL = urlDatabase[req.params.id].longURL;
   if(!longURL ){
-   res.status(404).send()
-   return;
+   return res.status(404).send("<html><body>This Url does not exist</body></html>\n")
+
   }
- res.redirect(longURL);
+  res.redirect(longURL);
+
 });
 
 // Registration page
 app.get("/register", (req, res) => {
   const userObject = users[req.cookies.user_id]
-  const templateVars = { id: req.params.id, longURL:urlDatabase[req.params.id], user : userObject  };
-
+  const templateVars = { user : userObject  };
+  if (userObject){
+    res.redirect("/urls")
+  }
+  else{
   res.render("urls_registration", templateVars)
+  }
 });
 
 // Login page
 app.get("/login", (req, res) => {
   const userObject = users[req.cookies.user_id]
   const templateVars = { id: req.params.id, longURL:urlDatabase[req.params.id], user : userObject  };
-
+  if(userObject){
+    res.redirect("/urls")
+  }
+  else{
   res.render("urls_login", templateVars)
+  }
 });
 
 
@@ -129,57 +178,75 @@ app.get("/login", (req, res) => {
 
 // Route to handle the creation of a new short URL and its long URL
 app.post("/urls", (req, res) => {
-
-  try {
-    new URL(req.body.longURL);
-  } catch (error) {
-    return res.status(400).send(`This is not a valid url`);
-  }
-
-  const newId = generateRandomString(); 
-  const newLongURL = req.body.longURL; 
-  urlDatabase[newId] = newLongURL;
-
-
+  const userObject = users[req.cookies.user_id]
+  if(userObject){
+  
+    try {
+      new URL(req.body.longURL);
+    } catch (error) {
+      return res.status(400).send(`This is not a valid url`);
+    }
+  
+    const newId = generateRandomString(); 
+    const newlongURL = req.body.longURL; 
+    urlDatabase[newId] = {
+      longURL:  newlongURL, userID: userObject.id
+    }
+    
   // Redirect the user to the show page for the newly created entry
   res.redirect(`/urls/${newId}`);
+  }
+  else{
+    res.status(404).send("<html><body>You must be logged in to create new url</body></html>\n")
+  }
 });
 
 // Route to handle the deletion of a specific short URL
 app.post("/urls/:id/delete", (req, res) => {
-  const id = req.params.id;
-  const longURL = urlDatabase[id];
+  const userObject = users[req.cookies.user_id]
+  if (userObject){
+    console.log(userObject)
+    // console.log(req.body.id)
+    if (!urlDatabase[req.params.id]) {
+      // URL with the specified 'id' not found
+      return res.status(404).send("You do not have this url");
+    }
+    delete urlDatabase[req.params.id];
+    
+     // Redirect the user to url page
+    res.redirect(`/urls`);
+  }
+  else{
+     res.status(404).send("<html><body>Please Login to visit this page</body></html>\n");
+  };
 
-   if (!longURL) {
-     // URL with the specified 'id' not found
-     return res.status(404).send(`URL with ID ${id} not found.`);
-   }
-     delete urlDatabase[id];
-   
-
-  // Redirect the user to url page
-  res.redirect(`/urls`);
 });
 
 // Route to handle the update of a specific short URL's long URL
 app.post("/urls/:id/edit", (req, res) => {
-  const id = req.params.id;
-  const longURL = urlDatabase[id];
-
-   if (!longURL) {
-     // URL with the specified 'id' not found
-     return res.status(404).send(`URL with ID ${id} not found.`);
+  const userObject = users[req.cookies.user_id]
+  console.log(urlDatabase[req.params.id])
+  if (userObject){
+    
+    if (!urlDatabase[req.params.id]) {
+      // URL with the specified 'id' not found
+      return res.status(404).send("You do not have this url");
+    }
+   // res.render("urls_show")
+    try {
+     new URL(req.body.longURL);
+   } catch (error) {
+     return res.status(400).send(`This is not a valid url`);
    }
-   try {
-    new URL(req.body.longURL);
-  } catch (error) {
-    return res.status(400).send(`This is not a valid url`);
+   //Updates the 'urlDatabase' with the new long URL for the specified short URL
+   const newlongURL = req.body.longURL; 
+   urlDatabase[req.params.id].longURL = newlongURL;
+  
+   res.redirect("/urls")
   }
-  //Updates the 'urlDatabase' with the new long URL for the specified short URL
-  const newLongURL = req.body.longURL; 
-  urlDatabase[id] = newLongURL;
-
-  res.redirect("/urls")
+  else{
+  res.redirect('/login');
+  };
 });
 
 // Route to handle user login (setting a username as a cookie)
