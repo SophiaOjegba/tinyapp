@@ -4,7 +4,7 @@ const getUserByEmail = function(email, database) {
     if (email === database[user].email)
     return database[user];
   } 
-  return false;
+  return undefined;
 };
 
 //get userid corresponding to URL

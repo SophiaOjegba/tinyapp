@@ -1,23 +1,20 @@
-// Import the necessary modules and set up the Express application
+// Import the necessary modules 
 const express = require("express");
+const bcrypt = require("bcryptjs");
+const {getUserByEmail, urlsForUser, generateRandomString } = require("./helpers")
+const cookieSession = require('cookie-session')
+
 const app = express();
 const PORT = 8080; // default port 8080
 app.set("view engine", "ejs");
 app.use(express.urlencoded({ extended: true }));
-const cookieSession = require('cookie-session')
 app.use(cookieSession({
   name: 'session',
   keys: ['user_id'],
   // Cookie Options
   maxAge: 24 * 60 * 60 * 1000 // 24 hours
 }))
-const bcrypt = require("bcryptjs");
 
-const {getUserByEmail} = require("./helpers")
-
-const {urlsForUser} = require("./helpers")
-
-const {generateRandomString} = require("./helpers")
 
 // Database to store short URLs and their corresponding long URLs
 const urlDatabase = {
@@ -53,6 +50,9 @@ const users = {
     password: bcrypt.hashSync("mee", 10)
   }
 };
+
+
+//GET ROUTES
 
 // Route to handle requests to the root path "/"
 app.get("/", (req, res) => {
@@ -113,7 +113,6 @@ app.get("/urls/:id", (req, res) => {
 
 // Route to redirect the user to the long URL associated with a specific short URL
 app.get("/u/:id", (req, res) => {
-  console.log("This is id", req.params.id)
  
   const longURL = urlDatabase[req.params.id].longURL;
   if(!longURL ){
@@ -167,7 +166,8 @@ app.post("/urls", (req, res) => {
     const newId = generateRandomString(); 
     const newlongURL = req.body.longURL; 
     urlDatabase[newId] = {
-      longURL:  newlongURL, userID: req.session.user_id
+      longURL:  newlongURL, 
+      userID: req.session.user_id
     }
     
   // Redirect the user to the show page for the newly created entry
@@ -182,15 +182,11 @@ app.post("/urls", (req, res) => {
 app.post("/urls/:id/delete", (req, res) => {
   const userObject = users[req.session.user_id]
   if (userObject){
-    console.log(userObject)
-    // console.log(req.body.id)
     if (!urlDatabase[req.params.id]) {
-      // URL with the specified 'id' not found
       return res.status(404).send("You do not have this url");
     }
     delete urlDatabase[req.params.id];
-    
-     // Redirect the user to url page
+  
     res.redirect(`/urls`);
   }
   else{
@@ -202,14 +198,11 @@ app.post("/urls/:id/delete", (req, res) => {
 // Route to handle the update of a specific short URL's long URL
 app.post("/urls/:id/edit", (req, res) => {
   const userObject = users[req.session.user_id]
-  console.log(urlDatabase[req.params.id])
   if (userObject){
     
     if (!urlDatabase[req.params.id]) {
-      // URL with the specified 'id' not found
       return res.status(404).send("You do not have this url");
     }
-   // res.render("urls_show")
     try {
      new URL(req.body.longURL);
    } catch (error) {
@@ -228,15 +221,13 @@ app.post("/urls/:id/edit", (req, res) => {
 
 // Route to handle user login (setting a username as a cookie)
 app.post("/login", (req, res) => {
-  const userEmail = req.body.email;
-  const userPassword = req.body.password;
-  // check the user information
+  const {email: userEmail, password: userPassword} = req.body
+    // check the user information
   if (!userEmail || !userPassword ){
     return res.status(404).send("Email or password cannot be empty");
   }
 
   const userFound = getUserByEmail(userEmail, users)
-  console.log(userFound)
   if (!userFound || !bcrypt.compareSync(userPassword, userFound.password)){
     return res.status(403).send("Incorrect email or password");
   }
@@ -257,8 +248,7 @@ app.post("/logout", (req, res) => {
 
 // Registration page
 app.post("/register", (req, res) => {
-  const newEmail = req.body.email;
-  const newPassword = req.body.password;
+  const {email: newEmail, password: newPassword} = req.body
   
   //Checking if fields are empty
   if (newEmail === "" || newPassword === ""){
@@ -267,12 +257,10 @@ app.post("/register", (req, res) => {
   
   //check if usser already exists
   const user = getUserByEmail(newEmail, users)
-  console.log(user)
   if(user){
     return res.status(404).send(`User already exists`);
   }
 
-  //generate random userID
   const userID = generateRandomString();
 
   //create user object
