@@ -1,7 +1,7 @@
 // Import the necessary modules 
 const express = require("express");
 const bcrypt = require("bcryptjs");
-const {getUserByEmail, urlsForUser, generateRandomString } = require("./helpers")
+const {getUserByEmail, urlsForUser, generateRandomString, urlAccess } = require("./helpers")
 const cookieSession = require('cookie-session')
 
 const app = express();
@@ -56,17 +56,13 @@ const users = {
 
 // Route to handle requests to the root path "/"
 app.get("/", (req, res) => {
-  res.send("Hello!");
-});
-
-// Route to provide the JSON representation of the urlDatabase
-app.get("/urls.json", (req, res) => {
-  res.json(urlDatabase);
-});
-
-// Route to display a simple "Hello World" message
-app.get("/hello", (req, res) => {
-  res.send("<html><body>Hello <b>World</b></body></html>\n");
+  const userObject = users[req.session.user_id]
+  if (userObject){
+    return res.redirect("/urls")
+  }
+  else{
+     res.redirect("/login")
+  }
 });
 
 // Route to display the list of all short URLs in the 'urlDatabase'
@@ -92,35 +88,22 @@ app.get("/urls/new", (req, res) => {
 
 // Route to display details of a specific short URL and its corresponding long URL
 app.get("/urls/:id", (req, res) => {
-  const userObject = users[req.session.user_id]
+
+  if (urlAccess(req,res,req.params.id,urlDatabase, users)){
+    const userObject = users[req.session.user_id]
   const templateVars = { id: req.params.id, longURL:urlDatabase[req.params.id].longURL, user : userObject  };
-  if (userObject){
-    if ( !urlDatabase[req.params.id]) {
-      // URL with the specified 'id' not found
-      return res.status(404).send("You do not have this url");
-    }
-    return res.render(`urls_show`, templateVars)
-  }
-  else{
-     res.status(404).send("<html><body>Please Login to visit this page</body></html>\n");
-  };
-  
-  if (!longURL) {
-    // URL with the specified 'id' not found
-    return res.status(404).send("<html><body>This Url does not exist</body></html>\n");
+
+  return res.render(`urls_show`, templateVars)
+
   }
 });
 
 // Route to redirect the user to the long URL associated with a specific short URL
 app.get("/u/:id", (req, res) => {
- 
-  const longURL = urlDatabase[req.params.id].longURL;
-  if(!longURL ){
-   return res.status(404).send("<html><body>This Url does not exist</body></html>\n")
-
-  }
+  if (urlAccess(req,res,req.params.id,urlDatabase, users)){
+   let longURL= urlDatabase[req.params.id].longURL
   res.redirect(longURL);
-
+  }
 });
 
 // Registration page
@@ -180,23 +163,17 @@ app.post("/urls", (req, res) => {
 
 // Route to handle the deletion of a specific short URL
 app.post("/urls/:id/delete", (req, res) => {
-  const userObject = users[req.session.user_id]
-  if (userObject){
-    if (!urlDatabase[req.params.id]) {
-      return res.status(404).send("You do not have this url");
-    }
+  if (urlAccess(req,res,req.params.id,urlDatabase, users)){
+
     delete urlDatabase[req.params.id];
   
     res.redirect(`/urls`);
   }
-  else{
-     res.status(404).send("<html><body>Please Login to visit this page</body></html>\n");
-  };
 
 });
 
 // Route to handle the update of a specific short URL's long URL
-app.post("/urls/:id/edit", (req, res) => {
+app.post("/urls/:id", (req, res) => {
   const userObject = users[req.session.user_id]
   if (userObject){
     
@@ -257,6 +234,7 @@ app.post("/register", (req, res) => {
   
   //check if usser already exists
   const user = getUserByEmail(newEmail, users)
+
   if(user){
     return res.status(404).send(`User already exists`);
   }

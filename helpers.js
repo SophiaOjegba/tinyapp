@@ -31,6 +31,23 @@ function generateRandomString(){
   return randommString;
 };
 
+function urlAccess(req, res, shortUrl, urlDatabase, users){
+  const userObject = users[req.session.user_id]
+
+  if (!userObject){
+    res.status(404).send("<html><body>Please Login to visit this page</body></html>\n")
+  }
+  if (!urlDatabase[shortUrl]) {
+    return res.status(404).send("You do not have this url");
+  }
+  if (userObject.id !== urlDatabase[shortUrl].userID){
+  
+    return res.status(404).send("You do not own this url");
+  }
+
+return true;
+}
 
 
-module.exports = {getUserByEmail, urlsForUser, generateRandomString};
+
+module.exports = {getUserByEmail, urlsForUser, generateRandomString, urlAccess};
